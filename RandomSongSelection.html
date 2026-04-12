@@ -1,0 +1,711 @@
+<!-- index.html
+随机歌单抽取工具 · 上传/手动编辑歌单 · 随机抽取并打开B站搜索
+跨平台响应式 · 移动端/桌面完美适配
+HTML5 · CSS3 · 原生JavaScript (ES6) -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <!-- ==================== 元信息 & 依赖 ==================== -->
+    <title>🎧 声汐 · 液态随机歌单</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- ==================== 核心样式 · 亮色液态玻璃 ==================== -->
+    <style>
+        /* ----- 重置 & 变量 ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 16px;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background-attachment: fixed;
+            transition: background 0.4s cubic-bezier(0.2, 0.9, 0.4, 1);
+        }
+
+        /* 亮色主题 — 粉 (默认) */
+        :root, [data-theme="pink"] {
+            --theme-glow: #ffb3c6;
+            --theme-primary: #e85d8a;
+            --theme-primary-dark: #ce4b77;
+            --theme-accent: #ffd9e4;
+            --theme-soft-bg: rgba(255, 240, 245, 0.7);
+            --glass-border: rgba(255, 200, 215, 0.7);
+            --card-bg: rgba(255, 250, 252, 0.75);
+            --text-main: #2d1b2e;
+            --text-soft: #5e3b5c;
+            --result-glow: #e85d8a;
+            --btn-glow: rgba(232, 93, 138, 0.25);
+            --bg-gradient: linear-gradient(145deg, #fff5fa 0%, #ffe4f0 100%);
+            --shadow-color: rgba(210, 120, 150, 0.12);
+            --input-bg: rgba(255, 255, 255, 0.85);
+            --surface-glass: rgba(255, 250, 252, 0.6);
+        }
+
+        /* 亮色主题 — 蓝 */
+        [data-theme="blue"] {
+            --theme-glow: #aac9ff;
+            --theme-primary: #3a86ff;
+            --theme-primary-dark: #2c6ed1;
+            --theme-accent: #d6e6ff;
+            --theme-soft-bg: rgba(230, 242, 255, 0.7);
+            --glass-border: rgba(170, 210, 255, 0.75);
+            --card-bg: rgba(248, 252, 255, 0.75);
+            --text-main: #1a2a44;
+            --text-soft: #2c3e66;
+            --result-glow: #3a86ff;
+            --btn-glow: rgba(58, 134, 255, 0.25);
+            --bg-gradient: linear-gradient(145deg, #f2f9ff 0%, #e3f0ff 100%);
+            --shadow-color: rgba(70, 130, 200, 0.12);
+            --input-bg: rgba(255, 255, 255, 0.85);
+            --surface-glass: rgba(248, 252, 255, 0.6);
+        }
+
+        body {
+            background: var(--bg-gradient);
+        }
+
+        /* ----- 主卡片 — 液态玻璃核心 ----- */
+        .glass-card {
+            max-width: 800px;
+            width: 100%;
+            background: var(--card-bg);
+            backdrop-filter: blur(22px) saturate(180%);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border-radius: 64px;
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            border-left: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 25px 45px -18px var(--shadow-color), inset 0 1px 3px rgba(255,255,255,0.8);
+            padding: 30px 28px 38px;
+            transition: box-shadow 0.3s, border-color 0.3s;
+        }
+
+        /* ----- 头部 & 主题切换 ----- */
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-weight: 750;
+            font-size: clamp(1.9rem, 7vw, 2.6rem);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, var(--text-main), var(--theme-primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 1px 4px rgba(255,255,255,0.6);
+        }
+
+        .theme-switch {
+            background: var(--surface-glass);
+            backdrop-filter: blur(16px);
+            border-radius: 60px;
+            padding: 6px;
+            display: flex;
+            gap: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.02);
+        }
+
+        .theme-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px 22px;
+            border-radius: 50px;
+            transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.2);
+            backdrop-filter: blur(4px);
+            font-weight: 600;
+            min-width: 72px;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-soft);
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .theme-btn i {
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+
+        .theme-btn.active {
+            background: var(--theme-primary);
+            color: white;
+            box-shadow: 0 8px 18px var(--btn-glow);
+            border: 1px solid rgba(255,255,255,0.6);
+            transform: scale(1.02);
+        }
+
+        .theme-btn:active {
+            transform: scale(0.95);
+        }
+
+        @media (hover: hover) {
+            .theme-btn:hover {
+                background: var(--theme-soft-bg);
+                transform: translateY(-2px);
+            }
+            .theme-btn:hover i {
+                transform: rotate(6deg);
+            }
+        }
+
+        .subtitle {
+            color: var(--text-soft);
+            margin-bottom: 28px;
+            padding-left: 20px;
+            border-left: 5px solid var(--theme-primary);
+            font-weight: 500;
+            font-size: 0.95rem;
+            background: rgba(255,255,245,0.4);
+            border-radius: 0 30px 30px 0;
+            backdrop-filter: blur(4px);
+        }
+
+        /* ----- 文件区域 · 玻璃质感 ----- */
+        .file-area {
+            background: var(--surface-glass);
+            backdrop-filter: blur(16px);
+            border-radius: 48px;
+            padding: 22px 22px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 20px -10px rgba(0,0,0,0.04);
+        }
+
+        .file-label {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* 隐藏原生input */
+        #fileInput {
+            position: absolute;
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* 滑动光效按钮 — 液态光泽扫过 */
+        .glass-btn {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            touch-action: manipulation;
+            border: none;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-top: 1px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.04);
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .glass-btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -120%;
+            width: 120%;
+            height: 100%;
+            background: linear-gradient(105deg, 
+                transparent 0%,
+                rgba(255, 255, 255, 0.45) 20%,
+                rgba(255, 255, 255, 0.8) 45%,
+                rgba(255, 255, 255, 0.4) 70%,
+                transparent 90%);
+            transform: skewX(-12deg);
+            pointer-events: none;
+            transition: left 0.55s cubic-bezier(0.23, 1, 0.32, 1);
+            z-index: 2;
+        }
+
+        .glass-btn:hover::after {
+            left: 110%;
+        }
+
+        .glass-btn:active {
+            transform: scale(0.97);
+            transition: transform 0.08s;
+        }
+
+        .upload-btn {
+            background: var(--theme-primary);
+            color: white;
+            padding: 14px 30px;
+            border-radius: 60px;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 54px;
+            font-weight: 650;
+            box-shadow: 0 8px 18px var(--btn-glow);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        .file-name {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            padding: 12px 24px;
+            border-radius: 60px;
+            color: var(--text-soft);
+            font-size: 0.95rem;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border: 1px solid var(--glass-border);
+            font-weight: 500;
+        }
+
+        .stats-badge {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 22px 0 12px;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .song-count {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(12px);
+            padding: 8px 26px;
+            border-radius: 60px;
+            font-weight: 650;
+            font-size: 1rem;
+            color: var(--text-main);
+            border: 1px solid var(--glass-border);
+        }
+
+        .manual-toggle {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px 28px;
+            border-radius: 60px;
+            font-weight: 650;
+            color: var(--text-soft);
+            min-height: 50px;
+        }
+
+        .manual-panel {
+            margin-top: 24px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            padding-top: 26px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 20px;
+            border-radius: 36px;
+            background: var(--input-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            min-height: 180px;
+            outline: none;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--theme-primary);
+            box-shadow: 0 0 0 3px rgba(232, 93, 138, 0.15);
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        /* 操作栏 */
+        .action-bar {
+            display: flex;
+            gap: 18px;
+            margin-top: 32px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            flex: 3;
+            background: linear-gradient(115deg, var(--theme-primary), var(--theme-primary-dark));
+            color: white;
+            font-size: 1.5rem;
+            padding: 20px 20px;
+            border-radius: 80px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            border: none;
+            min-height: 76px;
+            box-shadow: 0 16px 28px -10px var(--theme-primary-dark);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(0.1);
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(14px);
+            border-radius: 80px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            padding: 14px 22px;
+            color: var(--text-main);
+            border: 1px solid rgba(255,255,255,0.9);
+        }
+
+        /* 结果区域 */
+        .result-area {
+            margin-top: 36px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 48px;
+            padding: 24px 30px;
+            border-left: 8px solid var(--result-glow);
+            transition: all 0.2s;
+            box-shadow: 0 14px 24px -14px rgba(0,0,0,0.05);
+        }
+
+        .selected-song {
+            font-size: clamp(2.1rem, 7vw, 3rem);
+            font-weight: 850;
+            word-break: break-word;
+            color: var(--text-main);
+            text-shadow: 0 1px 6px rgba(255,255,240,0.7);
+            margin: 14px 0 8px;
+        }
+
+        .hint a {
+            color: var(--theme-primary);
+            text-decoration: underline;
+            text-underline-offset: 6px;
+            font-weight: 600;
+        }
+
+        .error-msg {
+            background: rgba(255, 235, 235, 0.8);
+            backdrop-filter: blur(12px);
+            border-left: 8px solid #e85d8a;
+            padding: 16px 26px;
+            border-radius: 48px;
+            margin-top: 22px;
+            color: #b13b5c;
+            font-weight: 550;
+        }
+
+        .footnote {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-soft);
+            opacity: 0.75;
+            letter-spacing: 0.3px;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 560px) {
+            .glass-card { padding: 22px 18px; border-radius: 48px; }
+            .action-bar { flex-direction: column; }
+            .btn-primary, .btn-secondary { width: 100%; }
+            .file-label { flex-direction: column; align-items: stretch; }
+            .upload-btn { justify-content: center; }
+            .stats-badge { flex-direction: column; align-items: stretch; }
+            .manual-toggle { text-align: center; }
+            .theme-btn { padding: 6px 16px; min-width: 60px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="glass-card">
+    <!-- ==================== 头部区域 ==================== -->
+    <div class="header-row">
+        <h1><i class="fas fa-wave-square"></i> 声汐·随机</h1>
+        <div class="theme-switch" id="themeSwitch">
+            <button class="theme-btn active" data-theme="pink" aria-label="樱粉主题"><i class="fas fa-cherry-blossom"></i> 粉</button>
+            <button class="theme-btn" data-theme="blue" aria-label="海蓝主题"><i class="fas fa-water"></i> 蓝</button>
+        </div>
+    </div>
+    <div class="subtitle">
+        <i class="fas fa-shuffle"></i> 上传 music.txt 或手动编辑 · 随机抽取 · 直达B站
+    </div>
+
+    <!-- ==================== 歌单管理区 ==================== -->
+    <div class="file-area">
+        <div class="file-label">
+            <button class="upload-btn glass-btn" id="uploadBtnLabel" type="button"><i class="fas fa-cloud-upload-alt"></i> 选择 music.txt</button>
+            <input type="file" id="fileInput" accept=".txt,text/plain">
+            <div class="file-name" id="fileNameDisplay"><i class="far fa-file-lines"></i> 未选择文件</div>
+        </div>
+        <div class="stats-badge">
+            <span class="song-count" id="songCountDisplay"><i class="fas fa-list-ul"></i> 0 首歌曲</span>
+            <button class="manual-toggle glass-btn" id="toggleManualBtn" type="button"><i class="fas fa-pen-to-square"></i> 手动编辑列表</button>
+        </div>
+
+        <!-- 手动编辑面板 -->
+        <div class="manual-panel" id="manualPanel" style="display: none;">
+            <textarea id="songTextarea" placeholder="每行一首歌名，例如：&#10;一路向北&#10;夜曲&#10;Lemon&#10;反方向的钟"></textarea>
+            <div class="flex-row">
+                <button class="btn-secondary glass-btn" id="applyManualBtn" type="button"><i class="fas fa-check-circle"></i> 应用列表</button>
+                <button class="btn-secondary glass-btn" id="clearManualBtn" type="button"><i class="fas fa-trash-alt"></i> 清空</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 核心操作 ==================== -->
+    <div class="action-bar">
+        <button class="btn-primary glass-btn" id="randomBtn" disabled><i class="fas fa-dice-d6"></i> 随机一曲 · 打开B站</button>
+        <button class="btn-secondary glass-btn" id="resetFileBtn" type="button"><i class="fas fa-arrow-rotate-left"></i> 重置</button>
+    </div>
+
+    <!-- ==================== 结果展示 ==================== -->
+    <div class="result-area" id="resultBox" style="display: none;">
+        <div style="font-weight: 650; letter-spacing: 0.3px;"><i class="fas fa-headphones"></i> 本次随机歌曲</div>
+        <div class="selected-song" id="selectedSongDisplay">—</div>
+        <div class="hint" id="linkHint"><i class="fas fa-external-link-alt"></i> 即将在新标签页打开B站搜索…</div>
+    </div>
+    <div id="errorMsg" class="error-msg" style="display: none;"></div>
+
+    <div class="footnote">
+        <i class="fas fa-gem"></i> 亮色液态玻璃 · 光泽扫掠 · 双主题随心<br>
+        支持 music.txt (自动跳过前两行及“共X首”统计行)
+    </div>
+</div>
+
+<!-- ==================== 核心逻辑 · 纯净ES6 ==================== -->
+<script>
+    (function(){
+        "use strict";
+
+        // ---------- 常量 & 状态 ----------
+        const SEARCH_URL_TMPL = "https://search.bilibili.com/all?keyword=";
+        const STATS_PREFIX = "共";
+
+        // DOM 元素
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const songCountDisplay = document.getElementById('songCountDisplay');
+        const randomBtn = document.getElementById('randomBtn');
+        const resetFileBtn = document.getElementById('resetFileBtn');
+        const toggleManualBtn = document.getElementById('toggleManualBtn');
+        const manualPanel = document.getElementById('manualPanel');
+        const songTextarea = document.getElementById('songTextarea');
+        const applyManualBtn = document.getElementById('applyManualBtn');
+        const clearManualBtn = document.getElementById('clearManualBtn');
+        const resultBox = document.getElementById('resultBox');
+        const selectedSongDisplay = document.getElementById('selectedSongDisplay');
+        const linkHint = document.getElementById('linkHint');
+        const errorMsgDiv = document.getElementById('errorMsg');
+        const themeBtns = document.querySelectorAll('.theme-btn');
+
+        let currentSongs = [];
+        let sourceType = 'file';   // 'file' 或 'manual'
+
+        // ---------- 工具函数 ----------
+        function isStatisticsLine(line) {
+            const trimmed = line.trim();
+            if (trimmed.length < 3 || !trimmed.startsWith(STATS_PREFIX)) return false;
+            const after = trimmed.substring(1).trimStart();
+            return after.length > 0 && /^\d/.test(after);
+        }
+
+        // 解析上传的txt (跳过前2行，遇到统计行停止)
+        function parseSongListFromText(text) {
+            const lines = text.split(/\r?\n/);
+            const songs = [];
+            const SKIP_HEADER = 2;
+            for (let i = SKIP_HEADER; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (isStatisticsLine(line)) break;
+                if (line !== '') songs.push(line);
+            }
+            return songs;
+        }
+
+        function updateUIAfterSongsChange(songsArray, src = 'file') {
+            currentSongs = songsArray;
+            sourceType = src;
+            const count = currentSongs.length;
+            songCountDisplay.innerHTML = `<i class="fas fa-list-ul"></i> ${count} 首歌曲`;
+            randomBtn.disabled = (count === 0);
+            
+            if (count === 0) {
+                if (sourceType === 'file' && fileInput.files.length > 0) {
+                    showError('⚠️ 文件中没有有效歌曲 (格式：跳过前两行，每行歌名)');
+                } else if (sourceType === 'manual') {
+                    showError('⚠️ 手动列表为空，请填写歌曲');
+                } else {
+                    hideError();
+                }
+            } else {
+                hideError();
+            }
+        }
+
+        function showError(msg) { 
+            errorMsgDiv.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${msg}`; 
+            errorMsgDiv.style.display = 'block'; 
+        }
+        function hideError() { errorMsgDiv.style.display = 'none'; }
+        function syncTextareaFromSongs(songs) { songTextarea.value = songs.join('\n'); }
+
+        // ---------- 文件处理 ----------
+        function handleFileUpload(file) {
+            if (!file) return;
+            fileNameDisplay.innerHTML = `<i class="fas fa-file-alt"></i> ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const songs = parseSongListFromText(e.target.result);
+                updateUIAfterSongsChange(songs, 'file');
+                syncTextareaFromSongs(songs);
+                if (manualPanel.style.display !== 'none') {
+                    manualPanel.style.display = 'none';
+                    toggleManualBtn.innerHTML = '<i class="fas fa-pen-to-square"></i> 手动编辑列表';
+                }
+            };
+            reader.onerror = () => {
+                showError('❌ 读取文件失败');
+                fileNameDisplay.innerHTML = '读取失败';
+                updateUIAfterSongsChange([], 'file');
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // ---------- 手动列表 ----------
+        function applyManualList() {
+            const raw = songTextarea.value;
+            const lines = raw.split(/\r?\n/);
+            const songs = [];
+            for (let line of lines) {
+                line = line.trim();
+                if (line === '' || isStatisticsLine(line)) continue;
+                songs.push(line);
+            }
+            updateUIAfterSongsChange(songs, 'manual');
+            const fileExists = fileInput.files.length;
+            fileNameDisplay.innerHTML = fileExists 
+                ? `<i class="fas fa-pen-fancy"></i> 手动模式 (原文件: ${fileInput.files[0]?.name})` 
+                : '<i class="fas fa-pen-fancy"></i> 手动编辑列表';
+            hideError();
+        }
+
+        function toggleManualPanel() {
+            const isHidden = manualPanel.style.display === 'none';
+            if (isHidden) {
+                manualPanel.style.display = 'block';
+                toggleManualBtn.innerHTML = '<i class="fas fa-chevron-up"></i> 收起编辑';
+                if (currentSongs.length > 0) syncTextareaFromSongs(currentSongs);
+            } else {
+                manualPanel.style.display = 'none';
+                toggleManualBtn.innerHTML = '<i class="fas fa-pen-to-square"></i> 手动编辑列表';
+            }
+        }
+
+        // ---------- 随机 & 跳转 ----------
+        function pickAndOpen() {
+            if (currentSongs.length === 0) { 
+                showError('❌ 歌曲列表为空，请先上传或添加歌曲'); 
+                return; 
+            }
+            const selected = currentSongs[Math.floor(Math.random() * currentSongs.length)];
+            selectedSongDisplay.textContent = selected;
+            resultBox.style.display = 'block';
+            const url = SEARCH_URL_TMPL + encodeURIComponent(selected);
+            linkHint.innerHTML = `<i class="fas fa-search"></i> 正在新标签页打开: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!newWindow) {
+                linkHint.innerHTML = `<i class="fas fa-ban"></i> 浏览器可能拦截弹窗，请手动点击: <a href="${url}" target="_blank" rel="noopener noreferrer">打开B站搜索</a>`;
+            }
+            hideError();
+        }
+
+        // ---------- 重置 ----------
+        function fullReset() {
+            fileInput.value = '';
+            fileNameDisplay.innerHTML = '<i class="far fa-file-lines"></i> 未选择文件';
+            currentSongs = [];
+            songCountDisplay.innerHTML = '<i class="fas fa-list-ul"></i> 0 首歌曲';
+            randomBtn.disabled = true;
+            resultBox.style.display = 'none';
+            selectedSongDisplay.textContent = '—';
+            songTextarea.value = '';
+            hideError();
+            sourceType = 'file';
+            if (manualPanel.style.display !== 'none') {
+                manualPanel.style.display = 'none';
+                toggleManualBtn.innerHTML = '<i class="fas fa-pen-to-square"></i> 手动编辑列表';
+            }
+        }
+
+        // ---------- 主题切换 (亮色平滑) ----------
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            themeBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+            localStorage.setItem('songPickerTheme', theme);
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('songPickerTheme') || 'pink';
+            setTheme(saved);
+            themeBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.theme)));
+        }
+
+        // ---------- 事件绑定 ----------
+        fileInput.addEventListener('change', (e) => {
+            const f = fileInput.files[0];
+            f ? handleFileUpload(f) : (fileNameDisplay.innerHTML = '<i class="far fa-file-lines"></i> 未选择文件');
+        });
+        resetFileBtn.addEventListener('click', fullReset);
+        randomBtn.addEventListener('click', pickAndOpen);
+        toggleManualBtn.addEventListener('click', toggleManualPanel);
+        applyManualBtn.addEventListener('click', applyManualList);
+        clearManualBtn.addEventListener('click', () => { songTextarea.value = ''; });
+        document.getElementById('uploadBtnLabel').addEventListener('click', () => fileInput.click());
+
+        // 初始化
+        updateUIAfterSongsChange([], 'file');
+        initTheme();
+    })();
+</script>
+</body>
+</html>
