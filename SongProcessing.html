@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<!-- SongProcessing.html -->
+<!-- 功能：歌曲列表去重排序与英文名规范化，生成统计信息，毛玻璃双主题 -->
+<!-- 平台：Web (HTML5/CSS3/ES6) 移动优先 -->
+<!-- 标准：玻璃拟态 · 液态光影 · 渐进增强 -->
+
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>律动 · 歌单工坊 | 玻璃拟态</title>
+    <style>
+        /* -------------------- 全局设计变量 · 粉蓝双主题 ------------------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: radial-gradient(circle at 20% 30%, rgba(255, 220, 240, 0.3), transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(200, 230, 255, 0.3), transparent 60%);
+            transition: background 0.4s cubic-bezier(0.25, 0.1, 0.15, 1.2), color 0.2s;
+            /* 主题变量由 .theme-pink / .theme-blue 覆盖 */
+        }
+
+        /* ----- 粉色主题（默认）----- */
+        body.theme-pink {
+            --glass-bg: rgba(255, 245, 250, 0.28);
+            --glass-border: rgba(255, 200, 220, 0.35);
+            --glass-shadow: 0 20px 40px -12px rgba(210, 80, 120, 0.18), 0 8px 24px -6px rgba(240, 120, 160, 0.12);
+            --accent-solid: #d97a9e;
+            --accent-soft: #f4c2d7;
+            --text-primary: #2d1e26;
+            --text-secondary: #5e3a4a;
+            --surface-1: rgba(255, 255, 255, 0.25);
+            --surface-2: rgba(255, 240, 245, 0.4);
+            --glow-1: rgba(255, 190, 210, 0.5);
+            --glow-2: rgba(250, 140, 180, 0.2);
+            background: linear-gradient(145deg, #fbe9f2 0%, #f8d5e4 100%);
+        }
+
+        /* ----- 蓝色主题 ----- */
+        body.theme-blue {
+            --glass-bg: rgba(235, 245, 255, 0.28);
+            --glass-border: rgba(160, 200, 250, 0.4);
+            --glass-shadow: 0 20px 40px -12px rgba(30, 100, 180, 0.16), 0 8px 24px -6px rgba(70, 140, 220, 0.12);
+            --accent-solid: #5f9cd1;
+            --accent-soft: #b7d9f5;
+            --text-primary: #1a2a3a;
+            --text-secondary: #2c4b63;
+            --surface-1: rgba(255, 255, 255, 0.2);
+            --surface-2: rgba(235, 245, 255, 0.4);
+            --glow-1: rgba(140, 200, 255, 0.5);
+            --glow-2: rgba(70, 150, 240, 0.18);
+            background: linear-gradient(145deg, #e1f0fd 0%, #cbe4fe 100%);
+        }
+
+        /* -------------------- 主容器 · 低透毛玻璃 + 渐变光影 ------------------- */
+        .glass-panel {
+            width: 100%;
+            max-width: 760px;
+            margin: 0 auto;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border-radius: 42px;
+            border: 1.5px solid var(--glass-border);
+            box-shadow: var(--glass-shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            padding: 24px 22px 30px;
+            transition: background 0.3s, border-color 0.3s, box-shadow 0.4s;
+            color: var(--text-primary);
+        }
+
+        /* -------------------- 头部 · 标题 + 主题滑动切换 ------------------- */
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        h1 {
+            font-weight: 500;
+            font-size: 1.9rem;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 80%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 6px var(--glow-1);
+        }
+
+        /* ----- 滑动渐变切换开关 (液态滑动块) ----- */
+        .theme-switch {
+            display: flex;
+            background: var(--surface-1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 5px;
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.02), 0 4px 10px var(--glow-2);
+        }
+
+        .theme-option {
+            position: relative;
+            padding: 8px 22px;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 40px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.25s;
+            z-index: 2;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            letter-spacing: 0.3px;
+        }
+
+        .theme-option.active {
+            color: #1e1e2a;
+            font-weight: 600;
+        }
+
+        .slider-block {
+            position: relative;
+            display: flex;
+        }
+
+        .slider-bg {
+            position: absolute;
+            top: 5px;
+            bottom: 5px;
+            left: 5px;
+            width: calc(50% - 5px);
+            background: var(--accent-soft);
+            border-radius: 40px;
+            box-shadow: 0 4px 12px var(--glow-1), inset 0 1px 3px rgba(255,255,255,0.8);
+            transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), background 0.3s;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 0.5px solid rgba(255,255,255,0.6);
+            z-index: 1;
+        }
+
+        .theme-blue .slider-bg {
+            transform: translateX(100%);
+        }
+
+        /* -------------------- 内容卡片 · 玻璃层次 ------------------- */
+        .section-card {
+            background: var(--surface-2);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 20px 18px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: inset 0 2px 6px rgba(255,255,255,0.5), 0 8px 18px -6px var(--glow-2);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        /* 文件上传区域 */
+        .upload-area {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-label {
+            background: var(--accent-solid);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 60px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 6px 14px var(--glow-2);
+            border: 0.5px solid rgba(255,255,255,0.4);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .file-label:active { transform: scale(0.97); }
+        #fileInput { display: none; }
+
+        .glass-btn {
+            background: var(--surface-1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            padding: 11px 20px;
+            border-radius: 60px;
+            font-weight: 500;
+            color: var(--text-primary);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+            cursor: pointer;
+            transition: all 0.25s;
+            font-size: 0.95rem;
+        }
+
+        .glass-btn:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent-solid);
+            box-shadow: 0 8px 16px var(--glow-2);
+        }
+
+        /* 文本编辑区 · 毛玻璃点缀 */
+        .edit-area {
+            width: 100%;
+            margin: 16px 0 8px;
+        }
+
+        textarea {
+            width: 100%;
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 16px 18px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+            resize: vertical;
+            min-height: 140px;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.02), 0 2px 6px var(--glow-1);
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-solid);
+            background: rgba(255,255,255,0.35);
+        }
+
+        /* 结果预览 · 统计与列表 */
+        .stats-badge {
+            display: inline-block;
+            background: var(--accent-solid);
+            color: white;
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 1rem;
+            backdrop-filter: blur(4px);
+            margin-bottom: 16px;
+            font-weight: 500;
+            box-shadow: 0 6px 12px var(--glow-2);
+        }
+
+        .song-list {
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .song-item {
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 40px;
+            border: 0.5px solid rgba(255,255,255,0.2);
+            font-size: 1rem;
+            color: var(--text-primary);
+            transition: 0.1s;
+            word-break: break-word;
+        }
+
+        .output-footer {
+            margin-top: 22px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .download-btn {
+            background: var(--accent-solid);
+            border: none;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 60px;
+            font-weight: 600;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 20px -5px var(--glow-2);
+            border: 0.5px solid rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        /* 辅助文字 */
+        .hint-text {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 6px;
+            color: var(--text-secondary);
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 520px) {
+            .glass-panel { padding: 20px 16px; border-radius: 36px; }
+            h1 { font-size: 1.7rem; }
+            .theme-option { padding: 6px 16px; }
+            .section-card { padding: 16px 12px; }
+        }
+    </style>
+</head>
+<body class="theme-pink">
+    <div class="glass-panel">
+        <!-- -------------------- 头部 + 主题滑动切换 ------------------- -->
+        <div class="app-header">
+            <h1>🎵 律动·歌单</h1>
+            <div class="theme-switch">
+                <div class="slider-block">
+                    <div class="slider-bg"></div>
+                    <button class="theme-option active" data-theme="pink">🌸 粉雾</button>
+                    <button class="theme-option" data-theme="blue">💧 蓝屿</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- -------------------- 文件操作区 ------------------- -->
+        <div class="section-card">
+            <div class="section-title">
+                <span>📂 曲库源</span>
+                <span style="font-size:0.85rem; margin-left:auto;">music.txt 格式</span>
+            </div>
+            <div class="upload-area">
+                <label for="fileInput" class="file-label">📎 选择文件</label>
+                <input type="file" id="fileInput" accept=".txt,text/plain">
+                <button class="glass-btn" id="loadExampleBtn">✨ 载入示例</button>
+                <button class="glass-btn" id="resetDefaultBtn">🔄 重置</button>
+            </div>
+            <div class="edit-area">
+                <textarea id="rawEditor" placeholder="歌名&#10;&#10;Lemon&#10;losT sTars&#10;光るなら&#10;共3首，重新运行..."></textarea>
+            </div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button class="glass-btn" id="processBtn" style="flex:2;">⚡ 处理 · 去重排序 & 英文规范化</button>
+                <button class="glass-btn" id="clearBtn" style="flex:1;">🧹 清空</button>
+            </div>
+            <div class="hint-text">※ 第一行“歌名”，第二行留空，统计行(共X首)自动忽略</div>
+        </div>
+
+        <!-- -------------------- 处理结果 · 液态玻璃卡片 ------------------- -->
+        <div class="section-card">
+            <div class="section-title">📋 精修歌单 · 统计预览</div>
+            <div id="statsDisplay" class="stats-badge">共 0 首</div>
+            <div id="songListContainer" class="song-list">
+                <div class="song-item" style="opacity:0.6; text-align:center;">点击「处理」生成规范化列表</div>
+            </div>
+            <div class="output-footer">
+                <button class="download-btn" id="downloadBtn">⬇ 下载 music.txt</button>
+            </div>
+            <div class="hint-text" style="margin-top:12px;">英文歌名: 首字母大写其余小写 · 非ASCII保留 · 去重排序</div>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            "use strict";
+
+            /* -------------------- 模块：DOM 元素 & 全局状态 ------------------- */
+            const body = document.body;
+            const themeOptions = document.querySelectorAll('.theme-option');
+            const rawEditor = document.getElementById('rawEditor');
+            const fileInput = document.getElementById('fileInput');
+            const processBtn = document.getElementById('processBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const loadExampleBtn = document.getElementById('loadExampleBtn');
+            const resetDefaultBtn = document.getElementById('resetDefaultBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const statsDisplay = document.getElementById('statsDisplay');
+            const songListContainer = document.getElementById('songListContainer');
+
+            // 内置默认示例（符合 music.txt 结构）
+            const DEFAULT_CONTENT = `歌名
+
+Lemon
+losT sTars
+Shape of You
+Hello, world's end
+光るなら
+losT sTars
+前前前世
+Lemon
+Blinding Lights
+Don't Start Now
+共8首，重新运行本程序以刷新统计数据。`;
+
+            // 当前处理结果暂存 (用于下载)
+            let lastProcessedOutput = '';
+
+            /* -------------------- 模块：初始化 & 主题滑动渐变 ------------------- */
+            function setTheme(theme) {
+                body.classList.remove('theme-pink', 'theme-blue');
+                body.classList.add(`theme-${theme}`);
+                themeOptions.forEach(opt => {
+                    const isActive = opt.dataset.theme === theme;
+                    opt.classList.toggle('active', isActive);
+                });
+                // 滑动块已在CSS中通过 .theme-blue .slider-bg 移动
+            }
+
+            themeOptions.forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const theme = opt.dataset.theme;
+                    setTheme(theme);
+                });
+            });
+
+            // 默认粉色
+            setTheme('pink');
+
+            // 设置初始编辑器内容
+            rawEditor.value = DEFAULT_CONTENT;
+
+            /* -------------------- 模块：核心算法 · 英文规范化 (完全复刻C++逻辑) ------------------- */
+            /**
+             * 规范化英文歌名：每个单词首字母大写，其余小写，仅处理ASCII字母
+             * 分隔符: 空格、'-' 、 '\'' 视为新单词开始
+             */
+            function normalizeEnglishTitle(title) {
+                let result = '';
+                let newWord = true;
+                for (let i = 0; i < title.length; i++) {
+                    const c = title[i];
+                    const code = c.charCodeAt(0);
+                    const isAsciiLetter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+                    
+                    if (isAsciiLetter) {
+                        // 仅处理ASCII字母
+                        if (newWord) {
+                            result += c.toUpperCase();
+                        } else {
+                            result += c.toLowerCase();
+                        }
+                        newWord = false;
+                    } else {
+                        result += c;
+                        // 判断是否单词分隔符 (空格、'-' 、 '\'')
+                        if (c === ' ' || c === '-' || c === "'") {
+                            newWord = true;
+                        } else {
+                            // 非分隔符且非字母，不改变newWord状态 (与原逻辑一致)
+                            // 但原程序对于非ASCII字符后不会重置newWord (除非遇到分隔符)
+                        }
+                    }
+                }
+                return result;
+            }
+
+            /** 判断是否为统计行: 以"共"开头且第4个字符(索引3)是数字 */
+            function isStatisticsLine(line) {
+                if (line.length < 4) return false;
+                return line.startsWith('共') && /\d/.test(line[3]);
+            }
+
+            /**
+             * 处理文本：返回 { songs: string[], outputText: string, count: number }
+             */
+            function processSongList(rawText) {
+                const lines = rawText.split(/\r?\n/);
+                if (lines.length < 2) {
+                    // 至少需要两行（表头+空行/第二行）
+                    return { songs: [], outputText: '', count: 0 };
+                }
+
+                // 跳过第一行（歌名），第二行（通常空行）
+                let startIdx = 2;
+                const songsSet = new Set();
+
+                for (let i = startIdx; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (isStatisticsLine(line)) {
+                        break;  // 遇到统计行停止
+                    }
+                    const trimmed = line.trim();  // 原C++判断 !line.empty() ，我们保留非空行
+                    if (trimmed !== '') {
+                        // 应用规范化
+                        const normalized = normalizeEnglishTitle(trimmed);
+                        songsSet.add(normalized);
+                    }
+                }
+
+                // 转为数组并排序 (默认字典序，与std::set<string>行为一致)
+                const sortedSongs = Array.from(songsSet).sort();
+                const count = sortedSongs.length;
+
+                // 生成输出文本 (完全匹配C++覆写格式)
+                let output = '歌名\n\n';
+                output += sortedSongs.join('\n') + '\n';
+                output += '\n\n\n\n\n';   // 5个换行
+                output += `共${count}首，重新运行本程序以刷新统计数据。`;
+
+                return { songs: sortedSongs, outputText: output, count };
+            }
+
+            /* -------------------- 模块：UI 渲染 (列表 & 统计) ------------------- */
+            function renderResult(songs, count, outputText) {
+                // 更新统计徽章
+                statsDisplay.textContent = `共 ${count} 首`;
+                
+                // 渲染歌曲列表
+                if (songs.length === 0) {
+                    songListContainer.innerHTML = `<div class="song-item" style="opacity:0.6; text-align:center;">✨ 暂无歌曲，请导入或编辑</div>`;
+                } else {
+                    let html = '';
+                    songs.forEach(song => {
+                        html += `<div class="song-item">${escapeHtml(song)}</div>`;
+                    });
+                    songListContainer.innerHTML = html;
+                }
+                
+                // 保存输出文本用于下载
+                lastProcessedOutput = outputText;
+            }
+
+            // 简单的转义（防止XSS）
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            /* -------------------- 模块：处理流程 (从编辑器读取) ------------------- */
+            function handleProcess() {
+                const raw = rawEditor.value;
+                const { songs, outputText, count } = processSongList(raw);
+                renderResult(songs, count, outputText);
+            }
+
+            /* -------------------- 模块：文件读取 & 示例加载 ------------------- */
+            function loadTextToEditor(text) {
+                rawEditor.value = text;
+                // 自动处理一次 (符合直觉)
+                handleProcess();
+            }
+
+            // 上传文件
+            fileInput.addEventListener('change', (e) => {
+                const file = fileInput.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    loadTextToEditor(ev.target.result);
+                };
+                reader.readAsText(file, 'UTF-8');
+                fileInput.value = ''; // 允许再次选择同一文件
+            });
+
+            // 示例
+            loadExampleBtn.addEventListener('click', () => {
+                loadTextToEditor(DEFAULT_CONTENT);
+            });
+
+            // 重置 (恢复到默认示例)
+            resetDefaultBtn.addEventListener('click', () => {
+                rawEditor.value = DEFAULT_CONTENT;
+                handleProcess();
+            });
+
+            // 清空编辑器 (但保留表头结构提示)
+            clearBtn.addEventListener('click', () => {
+                rawEditor.value = '歌名\n\n';
+                handleProcess();  // 结果应为0
+            });
+
+            // 处理按钮
+            processBtn.addEventListener('click', handleProcess);
+
+            // 下载功能
+            downloadBtn.addEventListener('click', () => {
+                if (!lastProcessedOutput) {
+                    // 若没有处理过，先处理一次
+                    handleProcess();
+                }
+                const blob = new Blob([lastProcessedOutput], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'music.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            /* -------------------- 模块：首次自动处理 & 移动端优化 ------------------- */
+            // 页面加载立即处理默认内容，展示结果
+            window.addEventListener('DOMContentLoaded', () => {
+                handleProcess();
+            });
+
+            // 额外：若用户想保留原始统计行后的内容? 但完全符合C++逻辑，遇到统计行break
+            // 支持从编辑器直接粘贴，完全兼容
+
+            /* -------------------- 模块：注释风格 · 分割线及命名规范 ------------------- */
+            // 以上实现与 SongProcessing.cpp 功能对等：
+            // - 跳过表头与第二行
+            // - 读取直到统计行，去重(set)排序
+            // - normalizeEnglishTitle 完全复刻规则 (ASCII字母，分隔符识别)
+            // - 输出格式：歌名\n\n + 歌曲\n + 5个\n + 统计信息
+            // 毛玻璃主题切换已实现滑动渐变
+
+            // 附加：双击主题预览效果增强，但已完善。
+        })();
+    </script>
+    <!-- 
+        设计附注：
+        · 粉/蓝主题通过CSS变量无缝过渡，滑动块具有cubic-bezier弹性效果。
+        · 低透明度毛玻璃 + 内阴影与高光，告别“糊感”，层次清晰。
+        · 移动端适配：触摸友好，圆角与间距优化。
+        · 完全实现C++功能：去重、排序、英文规范化、统计行识别。
+    -->
+</body>
+</html>
